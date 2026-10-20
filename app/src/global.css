@@ -1,0 +1,389 @@
+@keyframes popup-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dcw-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+:root {
+  --dcw-bg: #0e1218;
+  --dcw-panel: #161c25;
+  --dcw-panel-2: #1b222c;
+  --dcw-border: #2a323d;
+  --dcw-border-strong: #38424f;
+  --dcw-text: #dbe2ea;
+  --dcw-text-dim: #8a95a5;
+  --dcw-accent: #5c8bff;
+  --dcw-accent-dim: #3d5fa8;
+  --dcw-red: #d9534f;
+  --dcw-green: #4caf7a;
+  --dcw-panel-alpha: 0.94;
+  --dcw-dim-alpha: 0.4;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  background: var(--dcw-bg);
+  /* Slight global upscale: Mantine rem-based sizes follow this. */
+  font-size: 17px;
+}
+
+body {
+  margin: 0;
+  background: transparent;
+  color: var(--dcw-text);
+  font-family: "Segoe UI", system-ui, "Microsoft YaHei UI", "Microsoft YaHei",
+    sans-serif;
+  overflow: hidden;
+}
+
+/* ---- background photo (inside the app shell) ---------------------------- */
+.dcw-bg-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+.dcw-bg-layer img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.04);
+  display: block;
+}
+
+.dcw-bg-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: rgba(8, 11, 16, var(--dcw-dim-alpha, 0.4));
+}
+
+/* ---- flat panels --------------------------------------------------------- */
+.dcw-panel {
+  background: rgba(22, 28, 37, var(--dcw-panel-alpha, 0.94));
+  border: 1px solid var(--dcw-border);
+  border-radius: 6px;
+}
+
+.dcw-panel-plain {
+  background: var(--dcw-panel);
+  border: 1px solid var(--dcw-border);
+  border-radius: 6px;
+}
+
+.dcw-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 9px 14px;
+  background: var(--dcw-panel);
+  border: 1px solid var(--dcw-border);
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+
+.dcw-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Narrow windows: keep the header on a single row. */
+@media (max-width: 1280px) {
+  .dcw-header-progress {
+    display: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  .dcw-header-dial,
+  .dcw-header-sig {
+    display: none;
+  }
+}
+
+.dcw-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--dcw-border);
+  margin: 0 2px;
+}
+
+.dcw-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dcw-text-dim);
+  line-height: 1.1;
+}
+
+.dcw-readout {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dcw-text);
+  line-height: 1.2;
+}
+
+.dcw-led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #455061;
+  flex: none;
+}
+
+.dcw-led--on {
+  background: var(--dcw-accent);
+  animation: dcw-pulse 1.6s ease-in-out infinite;
+}
+
+.dcw-led--warn {
+  background: #d9a441;
+}
+
+.dcw-led--err {
+  background: var(--dcw-red);
+}
+
+/* ---- scope --------------------------------------------------------------- */
+.dcw-scope {
+  position: relative;
+  border: 1px solid var(--dcw-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: #070a0f;
+}
+
+.dcw-scope canvas {
+  display: block;
+}
+
+.dcw-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  border-top: 1px dashed rgba(92, 139, 255, 0.75);
+  border-bottom: 1px dashed rgba(92, 139, 255, 0.75);
+  background: rgba(92, 139, 255, 0.045);
+}
+
+.dcw-band-grip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 36px;
+  height: 11px;
+  border-radius: 2px;
+  border: 1px solid rgba(92, 139, 255, 0.9);
+  background: rgba(14, 18, 24, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  /* The handle must not cover the waterfall unless the pointer is on it. */
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.dcw-scope:hover .dcw-band-grip,
+.dcw-band-grip--active {
+  opacity: 1;
+}
+
+.dcw-band-grip span {
+  width: 1px;
+  height: 6px;
+  background: var(--dcw-accent);
+  display: block;
+}
+
+.dcw-transcript {
+  font-family: "Cascadia Mono", Consolas, "Roboto Mono", monospace;
+  background: #0b0f14;
+  color: var(--dcw-text);
+  scrollbar-width: thin;
+  scrollbar-color: #3a444f transparent;
+}
+
+.dcw-transcript::selection,
+.dcw-transcript *::selection {
+  background: rgba(92, 139, 255, 0.35);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #39424d;
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4c5866;
+  background-clip: content-box;
+}
+
+/* ---- settings page ------------------------------------------------------- */
+.dcw-settings {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.dcw-settings-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 8px 10px 0;
+  border-bottom: 1px solid var(--dcw-border);
+  background: var(--dcw-panel);
+  flex-wrap: wrap;
+}
+
+.dcw-settings-tab {
+  appearance: none;
+  border: 1px solid var(--dcw-border);
+  border-bottom: none;
+  background: #131922;
+  color: var(--dcw-text-dim);
+  font-size: 13px;
+  padding: 7px 16px;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  position: relative;
+  top: 1px;
+}
+
+.dcw-settings-tab:hover {
+  color: var(--dcw-text);
+  background: #1a212b;
+}
+
+.dcw-settings-tab--active {
+  background: #1e2632;
+  color: #ffffff;
+  border-color: var(--dcw-border-strong);
+}
+
+.dcw-settings-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 22px;
+  background: #11161d;
+}
+
+.dcw-settings-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--dcw-border);
+  background: var(--dcw-panel);
+}
+
+.dcw-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 30px;
+}
+
+.dcw-field > .dcw-field-label {
+  width: 205px;
+  flex: none;
+  color: var(--dcw-text-dim);
+  font-size: 13px;
+}
+
+.dcw-field > .dcw-field-control {
+  flex: 1;
+  min-width: 0;
+  max-width: 340px;
+}
+
+.dcw-subhead {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dcw-text-dim);
+  border-bottom: 1px solid var(--dcw-border);
+  padding-bottom: 6px;
+  margin: 4px 0 10px;
+}
+
+.dcw-drop-active {
+  outline: 2px dashed var(--dcw-accent);
+  outline-offset: -6px;
+}
+
+.dcw-mono {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.dcw-track-row {
+  display: grid;
+  grid-template-columns: 78px 96px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--dcw-border);
+  font-size: 13px;
+}
+
+.dcw-track-row:last-child {
+  border-bottom: none;
+}
+
+.dcw-track-row:hover {
+  background: #1a212b;
+}
+
+/* one line per signal: the strip scrolls to the newest text automatically */
+.dcw-track-text {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  font-family: "Cascadia Mono", Consolas, "Roboto Mono", monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  scrollbar-width: none;
+}
+
+.dcw-track-text::-webkit-scrollbar {
+  height: 0;
+  display: none;
+}

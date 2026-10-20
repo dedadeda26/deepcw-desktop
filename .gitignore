@@ -1,0 +1,32 @@
+# ---- private / local only ------------------------------------------------
+token.txt
+_local/
+*.pfx
+*.cer
+app/build/signing.pfx
+improvements.txt
+reference.png
+
+# ---- dependencies & build output ----------------------------------------
+node_modules/
+app/node_modules/
+app/dist/
+dist-exe/
+cache/
+tmp/
+*.log
+
+# ---- bundled tooling (too large for git) --------------------------------
+tools/node-v22.14.0-win-x64/
+tools/__pycache__/
+__pycache__/
+*.py[cod]
+
+# ---- legacy ONNX experiment (unused, kept locally) ----------------------
+engine/
+
+# ---- OS / editor ---------------------------------------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,95 @@
+{
+  "name": "deepcw-desktop",
+  "productName": "DeepCW Desktop",
+  "private": true,
+  "version": "0.9.3",
+  "description": "Local desktop build of the DeepCW neural CW decoder",
+  "author": "DeepCW Desktop local build",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "start": "npm run build && electron .",
+    "desktop": "electron .",
+    "dist": "npm run build && electron-builder --win nsis --x64",
+    "dist:dir": "npm run build && electron-builder --win --dir --x64",
+    "sign:cert": "powershell -ExecutionPolicy Bypass -File ../tools/make-signing-cert.ps1"
+  },
+  "dependencies": {
+    "@fontsource/roboto-mono": "^5.2.8",
+    "@mantine/core": "^8.2.7",
+    "@mantine/hooks": "^8.2.7",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "serialport": "^13.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "^38.8.6",
+    "electron-builder": "^26.15.3",
+    "eslint": "^9.33.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "postcss": "^8.5.6",
+    "postcss-preset-mantine": "^1.18.0",
+    "postcss-simple-vars": "^7.0.1",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.39.1",
+    "vite": "^7.1.2"
+  },
+  "build": {
+    "appId": "cc.deepcw.desktop",
+    "productName": "DeepCW Desktop",
+    "electronDist": "node_modules/electron/dist",
+    "directories": {
+      "output": "../dist-exe",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "dist/**/*",
+      "build/icon.ico",
+      "package.json",
+      "node_modules/serialport/**/*",
+      "node_modules/@serialport/**/*"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/@serialport/bindings-cpp/**/*",
+      "**/*.node"
+    ],
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DeepCW Desktop",
+      "artifactName": "DeepCW-Desktop-Setup-${version}.exe",
+      "installerLanguages": [
+        "zh_CN",
+        "en_US"
+      ],
+      "language": "2052"
+    }
+  }
+}
+
