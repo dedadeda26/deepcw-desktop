@@ -2,7 +2,7 @@
   "name": "deepcw-desktop",
   "productName": "DeepCW Desktop",
   "private": true,
-  "version": "0.9.3",
+  "version": "0.9.4",
   "description": "Local desktop build of the DeepCW neural CW decoder",
   "author": "DeepCW Desktop local build",
   "type": "module",

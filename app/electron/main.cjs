@@ -24,6 +24,22 @@ const {
   session,
   shell,
 } = require('electron');
+
+// Virtual display adapters installed by remote-desktop / emulator tools
+// (UU远程 / GameViewer, MuMu, ToDesk, Sunlogin, ...) make the *sandboxed*
+// Chromium GPU process crash during initialisation with an access violation.
+// After five failed restarts Chromium gives up and aborts the whole app:
+// "FATAL: GPU process isn't usable. Goodbye."
+//
+// `app.disableHardwareAcceleration()` does NOT help here: a GPU process is
+// still spawned for software compositing and crashes the same way. Dropping
+// only the GPU process sandbox is the minimal switch that keeps the app alive
+// while leaving the renderer sandbox untouched. Set DEEPCW_GPU_SANDBOX=1 to
+// restore the Chromium default.
+if (process.platform === 'win32' && process.env.DEEPCW_GPU_SANDBOX !== '1') {
+  app.commandLine.appendSwitch('disable-gpu-sandbox');
+}
+
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const http = require('node:http');
