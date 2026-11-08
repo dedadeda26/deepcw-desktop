@@ -19,9 +19,30 @@
  */
 
 const { app, dialog, shell } = require('electron');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const OWNER = 'dedadeda26';
 const REPO = 'deepcw-desktop';
+const LOG_MAX_BYTES = 64 * 1024;
+
+/**
+ * One line per state change in `<userData>/update.log`. Small enough to keep
+ * always on, and the first thing to ask for when a user reports "更新检查失败".
+ */
+function logLine(message) {
+  try {
+    const file = path.join(app.getPath('userData'), 'update.log');
+    try {
+      if (fs.statSync(file).size > LOG_MAX_BYTES) fs.writeFileSync(file, '');
+    } catch {
+      /* first run */
+    }
+    fs.appendFileSync(file, `${new Date().toISOString()} ${message}\n`, 'utf8');
+  } catch {
+    /* logging must never break the update path */
+  }
+}
 
 /** @typedef {'idle'|'checking'|'available'|'downloading'|'downloaded'|'up-to-date'|'error'} UpdatePhase */
 
@@ -70,14 +91,13 @@ class UpdaterController {
   setPhase(phase, patch = {}) {
     this.phase = phase;
     Object.assign(this, patch);
-    if (process.env.DEEPCW_UPDATE_LOG === '1') {
-      console.log(
-        `[updater] ${phase}` +
-          (this.availableVersion ? ` version=${this.availableVersion}` : '') +
-          (this.error ? ` error=${this.error}` : '') +
-          (this.percent ? ` percent=${this.percent}` : ''),
-      );
-    }
+    const detail =
+      `phase=${phase}` +
+      (this.availableVersion ? ` version=${this.availableVersion}` : '') +
+      (this.error ? ` error=${this.error}` : '') +
+      (this.percent ? ` percent=${this.percent}` : '');
+    logLine(`current=${this.currentVersion} ${detail}`);
+    if (process.env.DEEPCW_UPDATE_LOG === '1') console.log(`[updater] ${detail}`);
     this.emit();
   }
 
@@ -88,11 +108,13 @@ class UpdaterController {
   async init() {
     if (!this.enabled || this.initialised) return;
     this.initialised = true;
+    logLine(`init packaged=${app.isPackaged} version=${this.currentVersion}`);
 
     let autoUpdater;
     try {
       ({ autoUpdater } = require('electron-updater'));
     } catch (error) {
+      logLine(`electron-updater unavailable: ${error.message}`);
       console.warn('[updater] electron-updater unavailable:', error.message);
       return;
     }
@@ -153,6 +175,7 @@ class UpdaterController {
 
     autoUpdater.on('error', (error) => {
       this.error = error?.message ? String(error.message) : String(error);
+      logLine(`error ${this.error}${error?.stack ? ` | ${error.stack.split('\n')[1]?.trim() ?? ''}` : ''}`);
       this.setPhase('error');
       if (this.manualCheck) {
         void dialog.showMessageBox({
@@ -290,6 +313,9 @@ class UpdaterController {
 
   /** Called once the window exists: silent check shortly after start-up. */
   scheduleStartupCheck(delayMs = 8000) {
+    logLine(
+      `schedule enabled=${this.enabled} packaged=${app.isPackaged} version=${this.currentVersion} resource=${process.resourcesPath}`,
+    );
     if (!this.enabled) return;
     const timer = setTimeout(() => {
       void this.check({ manual: false });
