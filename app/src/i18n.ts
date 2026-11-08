@@ -78,6 +78,28 @@ export type MessageKey =
   | "general.timestamps"
   | "general.fontSize"
   | "general.section.ui"
+  | "general.bandwidthHint"
+  | "filter.section"
+  | "filter.strength"
+  | "filter.strengthMild"
+  | "filter.strengthNormal"
+  | "filter.strengthAggressive"
+  | "filter.autoBand"
+  | "filter.followSelection"
+  | "filter.hum"
+  | "filter.notch"
+  | "filter.force"
+  | "filter.hint"
+  | "filter.statusIdle"
+  | "filter.statusAcquiring"
+  | "filter.statusBypass"
+  | "filter.statusLocked"
+  | "filter.headerLabel"
+  | "filter.shapeTip"
+  | "filter.toggleTip"
+  | "filter.optionsTip"
+  | "filter.enableShort"
+  | "toolbar.filterTip"
   | "general.language"
   | "general.startStop"
   | "general.startStopHint"
@@ -137,6 +159,20 @@ export type MessageKey =
   | "advanced.resetHint"
   | "about.version"
   | "about.credits"
+  | "update.section"
+  | "update.current"
+  | "update.check"
+  | "update.checking"
+  | "update.available"
+  | "update.download"
+  | "update.downloading"
+  | "update.ready"
+  | "update.install"
+  | "update.upToDate"
+  | "update.failed"
+  | "update.notInstalled"
+  | "update.source"
+  | "update.openReleases"
   | "error.microphone"
   | "error.audioFile"
   | "error.modelLoad";
@@ -217,6 +253,28 @@ const en: Record<MessageKey, string> = {
   "general.timestamps": "Timestamps in transcript",
   "general.fontSize": "Transcript font size",
   "general.section.ui": "INTERFACE",
+  "general.bandwidthHint": "You can also drag the top or bottom edge of the band on the waterfall to resize it.",
+  "filter.section": "FRONT-END FILTER (DSP)",
+  "filter.strength": "Filtering strength",
+  "filter.strengthMild": "Mild",
+  "filter.strengthNormal": "Normal",
+  "filter.strengthAggressive": "Strong",
+  "filter.autoBand": "Bandwidth follows keying speed",
+  "filter.followSelection": "Track the tone inside the selected band only",
+  "filter.hum": "Mains-hum notch (50/60 Hz)",
+  "filter.notch": "Auto-notch steady carriers",
+  "filter.force": "Always apply (never pass through)",
+  "filter.hint": "Deterministic pre-processing before the neural decoder: tone tracking, adaptive band-pass, noise floor tracking, impulse blanking, carrier notch and AGC. Clean signals are left almost untouched.",
+  "filter.statusIdle": "off",
+  "filter.statusAcquiring": "acquiring",
+  "filter.statusBypass": "bypass",
+  "filter.statusLocked": "locked",
+  "filter.headerLabel": "FILTER",
+  "filter.shapeTip": "Blue block: front-end passband around the tracked tone. Dim frame: the decode band you selected.",
+  "filter.toggleTip": "Front-end filter on / off",
+  "filter.optionsTip": "Front-end filter options",
+  "filter.enableShort": "On",
+  "toolbar.filterTip": "Front-end filter on / off",
   "general.language": "Interface language",
   "general.startStop": "Start / stop decoding",
   "general.startStopHint": "Audio capture starts immediately; decoding follows as soon as the model is ready.",
@@ -276,6 +334,20 @@ const en: Record<MessageKey, string> = {
   "advanced.resetHint": "Removes the saved settings, background image and window state.",
   "about.version": "Version",
   "about.credits": "Decoder engine and models © 2026 e04 (AGPL-3.0-only).",
+  "update.section": "AUTO UPDATE",
+  "update.current": "Current version",
+  "update.check": "Check for updates",
+  "update.checking": "Checking…",
+  "update.available": "A new version is available",
+  "update.download": "Download update",
+  "update.downloading": "Downloading",
+  "update.ready": "Downloaded — restart to install",
+  "update.install": "Restart and install",
+  "update.upToDate": "You are on the latest version",
+  "update.failed": "Update check failed",
+  "update.notInstalled": "This build is not installed, so auto-update is disabled.",
+  "update.source": "Updates are served from GitHub Releases — no separate update server is needed.",
+  "update.openReleases": "Open releases page",
   "error.microphone": "Microphone unavailable",
   "error.audioFile": "Could not open this audio file",
   "error.modelLoad": "Failed to load the decoder model",
@@ -357,6 +429,28 @@ const zh: Record<MessageKey, string> = {
   "general.timestamps": "解码文本显示时间戳",
   "general.fontSize": "解码文本字号",
   "general.section.ui": "界面",
+  "general.bandwidthHint": "也可以在瀑布图上拖动选择框的上/下边缘，直接改变带宽。",
+  "filter.section": "前端滤波（DSP）",
+  "filter.strength": "滤波强度",
+  "filter.strengthMild": "轻度",
+  "filter.strengthNormal": "标准",
+  "filter.strengthAggressive": "强力",
+  "filter.autoBand": "带宽跟随码速",
+  "filter.followSelection": "只在所选频带内捕获音调",
+  "filter.hum": "工频陷波（50/60 Hz）",
+  "filter.notch": "常发载波自动陷波",
+  "filter.force": "始终介入（忽略直通判断）",
+  "filter.hint": "送进神经网络解码器之前的确定性前处理：音调跟踪、自适应带通、噪声底跟踪、脉冲消隐、载波陷波与 AGC。干净信号几乎不动。",
+  "filter.statusIdle": "关闭",
+  "filter.statusAcquiring": "捕获中",
+  "filter.statusBypass": "直通",
+  "filter.statusLocked": "已锁定",
+  "filter.headerLabel": "滤波",
+  "filter.shapeTip": "蓝色块：前端在锁定的音调上开的通带；暗框：你在瀑布图上选的解码频带。",
+  "filter.toggleTip": "前端滤波开 / 关",
+  "filter.optionsTip": "前端滤波选项",
+  "filter.enableShort": "启用",
+  "toolbar.filterTip": "前端滤波开 / 关",
   "general.language": "界面语言",
   "general.startStop": "开始/停止解码",
   "general.startStopHint": "点击“开始”后立即采集音频，模型就绪后马上开始解码。",
@@ -416,6 +510,20 @@ const zh: Record<MessageKey, string> = {
   "advanced.resetHint": "会清除已保存的设置、背景图和窗口状态。",
   "about.version": "版本",
   "about.credits": "解码引擎与模型 © 2026 e04（AGPL-3.0-only）。",
+  "update.section": "自动更新",
+  "update.current": "当前版本",
+  "update.check": "检查更新",
+  "update.checking": "正在检查…",
+  "update.available": "有新版本可用",
+  "update.download": "下载更新",
+  "update.downloading": "正在下载",
+  "update.ready": "已下载完成，重启即可安装",
+  "update.install": "立即重启安装",
+  "update.upToDate": "已是最新版本",
+  "update.failed": "检查更新失败",
+  "update.notInstalled": "当前不是安装版，自动更新不可用。",
+  "update.source": "更新走 GitHub Releases，不需要额外的更新服务器。",
+  "update.openReleases": "打开发布页",
   "error.microphone": "麦克风不可用",
   "error.audioFile": "无法打开该音频文件",
   "error.modelLoad": "解码模型加载失败",

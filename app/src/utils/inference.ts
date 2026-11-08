@@ -11,6 +11,7 @@ import type {
   WorkerResponse,
 } from "./inferenceProtocol";
 import { MODEL_KEYS, getModelKey } from "./inferenceProtocol";
+import { applyFrontEnd } from "./cwFilter";
 
 /**
  * Thin client for the official DeepCW WASM inference worker.
@@ -52,6 +53,8 @@ type RunInferenceOptions = {
   shiftTargetFreq?: number;
   englishModelVariant?: EnglishModelVariant;
   decodeMode?: InferenceDecodeMode;
+  /** Disable the optional DSP front end (benchmarks must stay comparable). */
+  skipFrontEnd?: boolean;
 };
 
 /**
@@ -378,6 +381,7 @@ async function requestInference(
     shiftTargetFreq,
     englishModelVariant = "standard",
     decodeMode = "display",
+    skipFrontEnd = false,
   } = options;
 
   try {
@@ -387,7 +391,13 @@ async function requestInference(
     throw error;
   }
 
-  const audioCopy = audioBuffer.slice();
+  // Optional DSP front end (tone tracking, noise reduction, notch, AGC). It is
+  // a single-signal front end, so multi-signal (shiftTargetFreq) decodes skip it.
+  const wantsFrontEnd = !skipFrontEnd && shiftTargetFreq == null;
+  const source = wantsFrontEnd
+    ? applyFrontEnd(audioBuffer, filterFreq, filterWidth)
+    : audioBuffer;
+  const audioCopy = source === audioBuffer ? audioBuffer.slice() : source;
 
   try {
     return await sendMessage(

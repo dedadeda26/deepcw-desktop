@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   Box,
   Button,
@@ -13,6 +20,8 @@ import {
   DEFAULT_DECODE_BANDWIDTH_HZ,
   DEFAULT_DECODE_CENTER_FREQ_HZ,
   DECODE_WINDOW_OPTIONS,
+  MAX_BANDWIDTH_HZ,
+  MIN_BANDWIDTH_HZ,
   SAMPLE_RATE,
   PILEUP_WINDOW_S,
   PILEUP_MIN_FREQ_HZ,
@@ -38,6 +47,7 @@ import { LoadProgressBars } from "./LoadProgressBars";
 import { PileupOverlay } from "./PileupOverlay";
 import { StreamingTranscriptDisplay } from "./StreamingTranscriptDisplay";
 import { TrackList } from "./components/TrackList";
+import { FrontEndControl } from "./components/FrontEndControl";
 import {
   SettingsPage,
   type AudioSettings,
@@ -50,6 +60,15 @@ import {
 } from "./utils/inferenceProtocol";
 import { hasMatchingOption, parseStringOption } from "./utils/optionUtils";
 import {
+  DEFAULT_FRONT_END_SETTINGS,
+  getFrontEndStatus,
+  resetFrontEndStatus,
+  setFrontEndSettings,
+  subscribeFrontEndStatus,
+  type FrontEndProfileName,
+  type FrontEndSettings,
+} from "./utils/cwFilter";
+import {
   DEFAULT_QUALITY,
   QUALITY_PRESETS,
   type QualityPreset,
@@ -59,14 +78,8 @@ import { useI18n } from "./i18n";
 type DecoderMode = "normal" | "pileup" | "benchmark";
 type DecoderLanguage = "EN" | "EN/JA";
 
-const FILTER_WIDTH_OPTIONS = [
-  100,
-  150,
-  250,
-  500,
-  DEFAULT_DECODE_BANDWIDTH_HZ,
-] as const;
 const MODE_OPTIONS = ["normal", "pileup", "benchmark"] as const;
+const FRONT_END_PROFILES = ["mild", "normal", "aggressive"] as const;
 const QUALITY_OPTIONS: readonly QualityPreset[] = [
   "high",
   "balanced",
@@ -90,6 +103,15 @@ const isValidFontSize = (value: unknown): value is number =>
 
 const isValidBoolean = (value: unknown): value is boolean =>
   typeof value === "boolean";
+
+const isValidBandwidth = (value: unknown): value is number =>
+  typeof value === "number" &&
+  Number.isFinite(value) &&
+  value >= MIN_BANDWIDTH_HZ &&
+  value <= MAX_BANDWIDTH_HZ;
+
+const clampBandwidth = (width: number): number =>
+  Math.min(MAX_BANDWIDTH_HZ, Math.max(MIN_BANDWIDTH_HZ, Math.round(width)));
 
 function formatHz(hz: number | null): string {
   if (hz === null || !Number.isFinite(hz) || hz <= 0) return "—";
@@ -152,8 +174,45 @@ export const Decoder = ({ background }: DecoderProps) => {
   const [filterFreq, setFilterFreq] = useState(DEFAULT_DECODE_CENTER_FREQ_HZ);
   const [filterWidth, setFilterWidth] = usePersistedState<number>(
     "decoder.filterWidth",
-    800,
-    (value): value is number => hasMatchingOption(value, FILTER_WIDTH_OPTIONS),
+    DEFAULT_DECODE_BANDWIDTH_HZ,
+    isValidBandwidth,
+  );
+  const [frontEndEnabled, setFrontEndEnabled] = usePersistedState<boolean>(
+    "decoder.filter.enabled",
+    DEFAULT_FRONT_END_SETTINGS.enabled,
+    isValidBoolean,
+  );
+  const [frontEndProfile, setFrontEndProfile] =
+    usePersistedState<FrontEndProfileName>(
+      "decoder.filter.strength",
+      DEFAULT_FRONT_END_SETTINGS.profile,
+      (value): value is FrontEndProfileName =>
+        hasMatchingOption(value, FRONT_END_PROFILES),
+    );
+  const [frontEndAutoBand, setFrontEndAutoBand] = usePersistedState<boolean>(
+    "decoder.filter.autoBand",
+    DEFAULT_FRONT_END_SETTINGS.autoBand,
+    isValidBoolean,
+  );
+  const [frontEndFollow, setFrontEndFollow] = usePersistedState<boolean>(
+    "decoder.filter.followSelection",
+    DEFAULT_FRONT_END_SETTINGS.followSelection,
+    isValidBoolean,
+  );
+  const [frontEndHum, setFrontEndHum] = usePersistedState<boolean>(
+    "decoder.filter.hum",
+    DEFAULT_FRONT_END_SETTINGS.humEnabled,
+    isValidBoolean,
+  );
+  const [frontEndNotch, setFrontEndNotch] = usePersistedState<boolean>(
+    "decoder.filter.notch",
+    DEFAULT_FRONT_END_SETTINGS.notchEnabled,
+    isValidBoolean,
+  );
+  const [frontEndForce, setFrontEndForce] = usePersistedState<boolean>(
+    "decoder.filter.force",
+    DEFAULT_FRONT_END_SETTINGS.forceEngage,
+    isValidBoolean,
   );
   const [language, setLanguage] = usePersistedState<DecoderLanguage>(
     "decoder.language",
@@ -227,6 +286,66 @@ export const Decoder = ({ background }: DecoderProps) => {
 
   const rig = useRig();
   const wsjtx = useWsjtx();
+
+  const frontEndStatus = useSyncExternalStore(
+    subscribeFrontEndStatus,
+    getFrontEndStatus,
+    getFrontEndStatus,
+  );
+
+  const frontEnd = useMemo<FrontEndSettings>(
+    () => ({
+      enabled: frontEndEnabled,
+      profile: frontEndProfile,
+      autoBand: frontEndAutoBand,
+      humEnabled: frontEndHum,
+      notchEnabled: frontEndNotch,
+      followSelection: frontEndFollow,
+      forceEngage: frontEndForce,
+    }),
+    [
+      frontEndAutoBand,
+      frontEndEnabled,
+      frontEndFollow,
+      frontEndForce,
+      frontEndHum,
+      frontEndNotch,
+      frontEndProfile,
+    ],
+  );
+
+  useEffect(() => {
+    setFrontEndSettings(frontEnd);
+    if (!frontEnd.enabled) resetFrontEndStatus();
+  }, [frontEnd]);
+
+  const setBandwidth = useCallback(
+    (width: number) => setFilterWidth(clampBandwidth(width)),
+    [setFilterWidth],
+  );
+
+  const updateFrontEnd = useCallback(
+    (patch: Partial<FrontEndSettings>) => {
+      if (patch.enabled != null) setFrontEndEnabled(patch.enabled);
+      if (patch.profile != null) setFrontEndProfile(patch.profile);
+      if (patch.autoBand != null) setFrontEndAutoBand(patch.autoBand);
+      if (patch.humEnabled != null) setFrontEndHum(patch.humEnabled);
+      if (patch.notchEnabled != null) setFrontEndNotch(patch.notchEnabled);
+      if (patch.followSelection != null) {
+        setFrontEndFollow(patch.followSelection);
+      }
+      if (patch.forceEngage != null) setFrontEndForce(patch.forceEngage);
+    },
+    [
+      setFrontEndAutoBand,
+      setFrontEndEnabled,
+      setFrontEndFollow,
+      setFrontEndForce,
+      setFrontEndHum,
+      setFrontEndNotch,
+      setFrontEndProfile,
+    ],
+  );
 
   const isPileup = mode === "pileup";
   const isBenchmark = mode === "benchmark";
@@ -767,8 +886,9 @@ export const Decoder = ({ background }: DecoderProps) => {
     setWindowSeconds: (seconds) =>
       setDecodeWindowSeconds(seconds as DecodeWindowSeconds),
     bandwidth: filterWidth,
-    setBandwidth: setFilterWidth,
-    bandwidthOptions: FILTER_WIDTH_OPTIONS,
+    setBandwidth,
+    bandwidthMin: MIN_BANDWIDTH_HZ,
+    bandwidthMax: MAX_BANDWIDTH_HZ,
     language,
     setLanguage,
     timestamps: showTimestamps,
@@ -913,6 +1033,10 @@ export const Decoder = ({ background }: DecoderProps) => {
             <span className="dcw-label">{t("header.audio")}</span>
             <span className="dcw-readout">{filterFreq} Hz</span>
           </div>
+          <div className="dcw-group">
+            <span className="dcw-label">{t("general.bandwidth")}</span>
+            <span className="dcw-readout">{filterWidth} Hz</span>
+          </div>
           <div className="dcw-group dcw-header-sig">
             <span className="dcw-label">{t("header.sig")}</span>
             <span className="dcw-readout">{formatHz(signalHz)}</span>
@@ -929,9 +1053,22 @@ export const Decoder = ({ background }: DecoderProps) => {
           </Tooltip>
         </Group>
 
+        <div className="dcw-sep" />
+
+        <FrontEndControl
+          settings={frontEnd}
+          onChange={updateFrontEnd}
+          status={frontEndStatus}
+          filterFreq={isPileup ? 800 : filterFreq}
+          filterWidth={filterWidth}
+        />
+
         <Box style={{ flex: 1, minWidth: 12 }} />
 
-        <Box className="dcw-header-progress" style={{ width: 150 }}>
+        <Box
+          className="dcw-header-progress"
+          style={{ flex: "0 1 150px", minWidth: 70 }}
+        >
           <LoadProgressBars progress={loadProgress} />
         </Box>
 
@@ -1002,6 +1139,7 @@ export const Decoder = ({ background }: DecoderProps) => {
               <Scope
                 stream={stream}
                 setFilterFreq={setFilterFreq}
+                setFilterWidth={isPileup ? undefined : setBandwidth}
                 filterFreq={isPileup ? null : filterFreq}
                 filterWidth={filterWidth}
                 decodeWindowSeconds={effectiveWindowSeconds}

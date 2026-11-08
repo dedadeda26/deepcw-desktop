@@ -150,6 +150,10 @@ export const getBufferSamples = (durationSeconds: number) =>
 export const MIN_FREQ_HZ = 100;
 export const MAX_FREQ_HZ = 1500;
 
+/** Decode band limits used by the draggable window on the waterfall. */
+export const MIN_BANDWIDTH_HZ = 50;
+export const MAX_BANDWIDTH_HZ = MAX_FREQ_HZ - MIN_FREQ_HZ;
+
 export const DECODABLE_MIN_FREQ_HZ = 400;
 export const DECODABLE_MAX_FREQ_HZ = 1200;
 export const DEFAULT_DECODE_CENTER_FREQ_HZ = Math.round(

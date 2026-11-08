@@ -13,6 +13,7 @@ import {
   TextInput,
 } from "@mantine/core";
 import { useI18n, type MessageKey } from "../i18n";
+import { useUpdater } from "../hooks/useUpdater";
 import type { BackgroundController } from "../hooks/useBackground";
 import type { RigController } from "../hooks/useRig";
 import type { WsjtxController } from "../hooks/useWsjtx";
@@ -30,7 +31,8 @@ export type DecodeSettings = {
   setWindowSeconds: (seconds: number) => void;
   bandwidth: number;
   setBandwidth: (bandwidth: number) => void;
-  bandwidthOptions: readonly number[];
+  bandwidthMin: number;
+  bandwidthMax: number;
   language: "EN" | "EN/JA";
   setLanguage: (language: "EN" | "EN/JA") => void;
   timestamps: boolean;
@@ -124,6 +126,14 @@ export function SettingsPage({
   const { t, lang, setLang } = useI18n();
   const bg = background.settings;
   const [detectError, setDetectError] = useState(false);
+  const {
+    status,
+    available,
+    check,
+    download,
+    install,
+    openReleases,
+  } = useUpdater();
 
   const qualityDescription: MessageKey =
     decode.quality === "custom"
@@ -199,18 +209,39 @@ export function SettingsPage({
                 }}
               />
             </Row>
-            <Row label={t("general.bandwidth")}>
-              <NativeSelect
-                size="xs"
-                data={decode.bandwidthOptions.map((width) => ({
-                  value: String(width),
-                  label: `${width} Hz`,
-                }))}
-                value={String(decode.bandwidth)}
-                onChange={(event) =>
-                  decode.setBandwidth(Number(event.currentTarget.value))
-                }
-              />
+            <Row label={t("general.bandwidth")} hint={t("general.bandwidthHint")}>
+              <Group gap={10} wrap="nowrap">
+                <Slider
+                  size="xs"
+                  style={{ flex: 1 }}
+                  min={decode.bandwidthMin}
+                  max={decode.bandwidthMax}
+                  step={10}
+                  value={decode.bandwidth}
+                  onChange={decode.setBandwidth}
+                  color="accent"
+                />
+                <NumberInput
+                  size="xs"
+                  w={86}
+                  min={decode.bandwidthMin}
+                  max={decode.bandwidthMax}
+                  step={10}
+                  suffix=" Hz"
+                  value={decode.bandwidth}
+                  onChange={(value) => {
+                    const numeric = Number(value);
+                    if (Number.isFinite(numeric)) {
+                      decode.setBandwidth(
+                        Math.min(
+                          decode.bandwidthMax,
+                          Math.max(decode.bandwidthMin, Math.round(numeric)),
+                        ),
+                      );
+                    }
+                  }}
+                />
+              </Group>
             </Row>
             <Row label={t("general.cwLang")}>
               <NativeSelect
@@ -737,6 +768,97 @@ export function SettingsPage({
                 WASM engine
               </Badge>
             </Group>
+
+            <div className="dcw-subhead" style={{ marginTop: 16 }}>
+              {t("update.section")}
+            </div>
+            <Group gap={8} wrap="nowrap">
+              <Text size="xs" c="dimmed" w={86}>
+                {t("update.current")}
+              </Text>
+              <Text size="xs" className="dcw-mono" style={{ flex: 1 }}>
+                {status.currentVersion || version}
+                {status.phase === "available" && status.availableVersion
+                  ? ` → ${status.availableVersion}`
+                  : ""}
+              </Text>
+            </Group>
+            <Group gap={8}>
+              <Button
+                size="xs"
+                variant="light"
+                color="accent"
+                loading={status.phase === "checking"}
+                disabled={!available || status.phase === "downloading"}
+                onClick={check}
+              >
+                {status.phase === "checking"
+                  ? t("update.checking")
+                  : t("update.check")}
+              </Button>
+              {(status.phase === "available" ||
+                status.phase === "downloading") && (
+                <Button
+                  size="xs"
+                  variant="filled"
+                  color="accent"
+                  loading={status.phase === "downloading"}
+                  onClick={download}
+                >
+                  {status.phase === "downloading"
+                    ? `${t("update.downloading")} ${status.percent}%`
+                    : t("update.download")}
+                </Button>
+              )}
+              {status.phase === "downloaded" && (
+                <Button
+                  size="xs"
+                  variant="filled"
+                  color="accent"
+                  onClick={install}
+                >
+                  {t("update.install")}
+                </Button>
+              )}
+              <Button
+                size="xs"
+                variant="default"
+                onClick={openReleases}
+                disabled={!available}
+              >
+                {t("update.openReleases")}
+              </Button>
+            </Group>
+            <Text
+              size="xs"
+              c={
+                status.phase === "error"
+                  ? "red.4"
+                  : status.phase === "available" ||
+                      status.phase === "downloaded"
+                    ? "accent.4"
+                    : "dimmed"
+              }
+            >
+              {!available
+                ? t("update.notInstalled")
+                : status.phase === "checking"
+                  ? t("update.checking")
+                  : status.phase === "available"
+                    ? t("update.available")
+                    : status.phase === "downloading"
+                      ? `${t("update.downloading")} ${status.percent}%`
+                      : status.phase === "downloaded"
+                        ? t("update.ready")
+                        : status.phase === "up-to-date"
+                          ? t("update.upToDate")
+                          : status.phase === "error"
+                            ? `${t("update.failed")}${status.error ? `：${status.error}` : ""}`
+                            : ""}
+            </Text>
+            <Text size="xs" c="dimmed">
+              {t("update.source")}
+            </Text>
           </Stack>
         )}
       </div>

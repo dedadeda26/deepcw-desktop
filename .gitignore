@@ -30,3 +30,6 @@ engine/
 Thumbs.db
 .vscode/
 .idea/
+
+# ---- WorkBuddy project data ---------------------------------------------
+.workbuddy/

@@ -60,4 +60,18 @@ contextBridge.exposeInMainWorld('deepcwDesktop', {
     choose: () => ipcRenderer.invoke('deepcw:background-choose'),
     clear: () => ipcRenderer.invoke('deepcw:background-clear'),
   },
+
+  // ---- Auto-update (GitHub Releases) --------------------------------------
+  updater: {
+    status: () => ipcRenderer.invoke('deepcw:update-status'),
+    check: () => ipcRenderer.invoke('deepcw:update-check'),
+    download: () => ipcRenderer.invoke('deepcw:update-download'),
+    install: () => ipcRenderer.invoke('deepcw:update-install'),
+    openReleases: () => ipcRenderer.invoke('deepcw:update-releases'),
+    onStatus: (callback) => {
+      const listener = (_event, status) => callback(status);
+      ipcRenderer.on('deepcw:update-status', listener);
+      return () => ipcRenderer.removeListener('deepcw:update-status', listener);
+    },
+  },
 });

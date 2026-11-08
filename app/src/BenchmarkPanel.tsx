@@ -171,6 +171,7 @@ export const BenchmarkPanel = () => {
             {
               lang: "en",
               backend: variant.backend,
+              skipFrontEnd: true,
             },
           );
 
@@ -195,6 +196,7 @@ export const BenchmarkPanel = () => {
               {
                 lang: "en",
                 backend: variant.backend,
+                skipFrontEnd: true,
               },
             );
 

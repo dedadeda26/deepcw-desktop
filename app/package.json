@@ -2,9 +2,13 @@
   "name": "deepcw-desktop",
   "productName": "DeepCW Desktop",
   "private": true,
-  "version": "0.9.4",
+  "version": "0.9.5",
   "description": "Local desktop build of the DeepCW neural CW decoder",
   "author": "DeepCW Desktop local build",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dedadeda26/deepcw-desktop.git"
+  },
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -21,6 +25,7 @@
     "@fontsource/roboto-mono": "^5.2.8",
     "@mantine/core": "^8.2.7",
     "@mantine/hooks": "^8.2.7",
+    "electron-updater": "^6.8.11",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "serialport": "^13.0.0"
@@ -65,6 +70,13 @@
       "**/*.node"
     ],
     "npmRebuild": false,
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "dedadeda26",
+        "repo": "deepcw-desktop"
+      }
+    ],
     "win": {
       "target": [
         {
@@ -92,4 +104,3 @@
     }
   }
 }
-

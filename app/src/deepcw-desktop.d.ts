@@ -89,6 +89,24 @@ export type DeepCWRigAutoDetectResult =
   | { error: string }
   | null;
 
+export type DeepCWUpdatePhase =
+  | "idle"
+  | "checking"
+  | "available"
+  | "downloading"
+  | "downloaded"
+  | "up-to-date"
+  | "error";
+
+export type DeepCWUpdateStatus = {
+  enabled: boolean;
+  phase: DeepCWUpdatePhase;
+  currentVersion: string;
+  availableVersion: string | null;
+  percent: number;
+  error: string | null;
+};
+
 export type DeepCWDesktopApi = {
   isDesktop: true;
   info: () => Promise<DeepCWDesktopInfo>;
@@ -121,6 +139,14 @@ export type DeepCWDesktopApi = {
   background: {
     choose: () => Promise<DeepCWBackgroundResult | null>;
     clear: () => Promise<boolean>;
+  };
+  updater: {
+    status: () => Promise<DeepCWUpdateStatus>;
+    check: () => Promise<DeepCWUpdateStatus | null>;
+    download: () => Promise<DeepCWUpdateStatus | null>;
+    install: () => Promise<boolean>;
+    openReleases: () => Promise<boolean>;
+    onStatus: (callback: (status: DeepCWUpdateStatus) => void) => () => void;
   };
 };
 

@@ -93,7 +93,7 @@ body {
 .dcw-header {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   padding: 9px 14px;
   background: var(--dcw-panel);
   border: 1px solid var(--dcw-border);
@@ -188,6 +188,66 @@ body {
   background: rgba(92, 139, 255, 0.045);
 }
 
+/* Drag handles: the top / bottom edge of the band changes the bandwidth. */
+.dcw-band-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 9px;
+  pointer-events: auto;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dcw-band-handle--top {
+  top: -5px;
+}
+
+.dcw-band-handle--bottom {
+  bottom: -5px;
+}
+
+.dcw-band-handle::after {
+  content: "";
+  display: block;
+  width: 42px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(92, 139, 255, 0.45);
+  box-shadow: 0 0 0 1px rgba(10, 14, 20, 0.55);
+  transition: background 120ms ease, width 120ms ease;
+}
+
+.dcw-band-handle:hover::after,
+.dcw-band-handle--active::after {
+  background: var(--dcw-accent);
+  width: 64px;
+}
+
+.dcw-band-label {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 3px;
+  color: #cfe0ff;
+  background: rgba(10, 14, 20, 0.72);
+  border: 1px solid rgba(92, 139, 255, 0.35);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.dcw-scope:hover .dcw-band-label {
+  opacity: 1;
+}
+
 .dcw-band-grip {
   position: absolute;
   left: 50%;
@@ -217,6 +277,124 @@ body {
   height: 6px;
   background: var(--dcw-accent);
   display: block;
+}
+
+/* ---- front-end filter control in the header ------------------------------ */
+.dcw-filter-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.dcw-filter-toggle {
+  display: inline-flex;
+  align-items: stretch;
+  height: 24px;
+  border: 1px solid var(--dcw-border-strong);
+  border-radius: 4px;
+  overflow: hidden;
+  background: #131922;
+}
+
+.dcw-filter-toggle--on {
+  border-color: var(--dcw-accent-dim);
+}
+
+.dcw-filter-btn,
+.dcw-filter-caret {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--dcw-text-dim);
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.dcw-filter-btn {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+}
+
+.dcw-filter-btn:hover,
+.dcw-filter-caret:hover {
+  color: var(--dcw-text);
+  background: #1d2530;
+}
+
+.dcw-filter-toggle--on .dcw-filter-btn {
+  background: var(--dcw-accent);
+  color: #ffffff;
+}
+
+.dcw-filter-toggle--on .dcw-filter-btn:hover {
+  background: #6d98ff;
+  color: #ffffff;
+}
+
+.dcw-filter-caret {
+  padding: 0 5px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.dcw-filter-caret--open {
+  color: var(--dcw-text);
+  background: #263041;
+}
+
+.dcw-filter-toggle--on .dcw-filter-caret {
+  color: #cfdcff;
+  background: rgba(92, 139, 255, 0.22);
+}
+
+.dcw-filter-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 300px;
+  padding: 12px 12px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--dcw-border-strong);
+  background: #161c25;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.55);
+  z-index: 60;
+}
+
+.dcw-filter-shape {
+  display: flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.dcw-filter-status {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dcw-text-dim);
+  white-space: nowrap;
+  min-width: 78px;
+}
+
+.dcw-filter-status--dim {
+  color: #6b7482;
+}
+
+@media (max-width: 1340px) {
+  .dcw-filter-status {
+    display: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  .dcw-filter-shape {
+    display: none;
+  }
 }
 
 .dcw-transcript {

@@ -40,6 +40,19 @@ if (process.platform === 'win32' && process.env.DEEPCW_GPU_SANDBOX !== '1') {
   app.commandLine.appendSwitch('disable-gpu-sandbox');
 }
 
+// The sandboxed Chromium *audio* service cannot reach the Windows audio
+// endpoints on some machines (remote-desktop / many-virtual-device installs):
+// `navigator.mediaDevices` then lists no audio devices at all, every
+// AudioContext stays at currentTime 0, and a dropped file "plays" without
+// producing a single frame -- the decoder sits on "等待信号" forever while the
+// log says "The AudioContext encountered an error from the audio device or the
+// WebAudio renderer." Running the audio service in-process fixes it without
+// touching the renderer sandbox. Set DEEPCW_AUDIO_SERVICE=out-of-process to
+// restore the Chromium default.
+if (process.env.DEEPCW_AUDIO_SERVICE !== 'out-of-process') {
+  app.commandLine.appendSwitch('disable-features', 'AudioServiceOutOfProcess');
+}
+
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const http = require('node:http');
@@ -47,6 +60,7 @@ const path = require('node:path');
 
 const { RigController } = require('./rig.cjs');
 const { WsjtxSender } = require('./wsjtx.cjs');
+const { initUpdater, getUpdater } = require('./updater.cjs');
 
 const DIST_DIR = path.join(__dirname, '..', 'dist');
 const IS_DEV = !app.isPackaged;
@@ -284,6 +298,7 @@ const MENU_TEXT = {
     startStop: '开始 / 停止',
     alwaysTop: '窗口置顶',
     help: '帮助(&H)',
+    checkUpdates: '检查更新…',
     about: '关于 DeepCW Desktop',
     homepage: '项目主页',
     aboutDetail:
@@ -304,6 +319,7 @@ const MENU_TEXT = {
     startStop: 'Start / Stop',
     alwaysTop: 'Always on Top',
     help: '&Help',
+    checkUpdates: 'Check for Updates…',
     about: 'About DeepCW Desktop',
     homepage: 'Project Homepage',
     aboutDetail:
@@ -409,6 +425,14 @@ function buildMenu() {
   template.push({
     label: label.help,
     submenu: [
+      {
+        label: label.checkUpdates,
+        click: () => {
+          const updater = getUpdater();
+          if (updater) void updater.check({ manual: true });
+        },
+      },
+      { type: 'separator' },
       {
         label: label.about,
         click: () => {
@@ -524,6 +548,35 @@ function registerIpcHandlers() {
     isPackaged: app.isPackaged,
     platform: process.platform,
   }));
+
+  // ---- auto-update (GitHub Releases) --------------------------------------
+  ipcMain.handle('deepcw:update-status', () => {
+    const updater = getUpdater();
+    return updater
+      ? updater.status()
+      : { enabled: false, phase: 'idle', currentVersion: app.getVersion(), availableVersion: null, percent: 0, error: null };
+  });
+
+  ipcMain.handle('deepcw:update-check', async () => {
+    const updater = getUpdater();
+    return updater ? await updater.check({ manual: true }) : null;
+  });
+
+  ipcMain.handle('deepcw:update-download', async () => {
+    const updater = getUpdater();
+    return updater ? await updater.download() : null;
+  });
+
+  ipcMain.handle('deepcw:update-install', () => {
+    const updater = getUpdater();
+    return updater ? updater.install() : false;
+  });
+
+  ipcMain.handle('deepcw:update-releases', async () => {
+    const updater = getUpdater();
+    if (updater) await updater.openReleasePage();
+    return true;
+  });
 
   ipcMain.handle('deepcw:copy-text', (_event, text) => {
     clipboard.writeText(String(text ?? ''));
@@ -713,6 +766,14 @@ if (!app.requestSingleInstanceLock()) {
       );
       app.quit();
     }
+
+    // Auto-update (GitHub Releases). Silent at start-up unless a new version
+    // is actually available; manual checks are exposed in Help / Settings.
+    const updater = initUpdater({
+      getWindow: () => mainWindow,
+      getLanguage: () => menuLanguage,
+    });
+    updater.scheduleStartupCheck();
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0 && assetPort) {
