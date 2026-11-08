@@ -46,9 +46,15 @@ Windows 桌面版的 [DeepCW](https://github.com/e04/web-deep-cw-decoder)：解�
 - 标签式设置页：常规 / 电台 / 音频 / 网络 / 显示 / 高级 / 关于
 - 可选背景图（模糊、透明度、遮罩可调），窗口位置记忆
 
+**自动更新**
+
+- 通过 GitHub Releases 分发，不需要额外的更新服务器
+- 启动后静默检查，发现新版本才询问；也可手动 帮助 → 检查更新 / 设置 → 关于 → 检查更新
+- 下载完提示重启安装，选「稍后」则在退出时安装；过程记录在 `%APPDATA%/DeepCW Desktop/update.log`
+
 ## 安装
 
-1. 从 [Releases](https://github.com/dedadeda26/deepcw-desktop/releases) 下载 `DeepCW-Desktop-Setup-x.y.z.exe` 安装（Windows 10 / 11 x64），或直接运行免安装包里的 `DeepCW Desktop.exe`
+1. 从 [Releases](https://github.com/dedadeda26/deepcw-desktop/releases) 下载 `DeepCW-Desktop-Setup-x.y.z.exe` 安装（Windows 10 / 11 x64），或直接运行免安装包里的 `DeepCW Desktop.exe`；装好之后可以直接在应用内升级，不用再来下载
 2. 安装包使用自签名证书，Windows 提示“未知发布者”时选择“更多信息 → 仍要运行”
 3. 点「开始」选择音频输入；没有电台也可以只用麦克风或录音解码
 
