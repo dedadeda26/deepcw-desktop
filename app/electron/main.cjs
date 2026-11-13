@@ -21,6 +21,7 @@ const {
   dialog,
   ipcMain,
   powerSaveBlocker,
+  screen,
   session,
   shell,
 } = require('electron');
@@ -247,32 +248,157 @@ function startAssetServer() {
   });
 }
 
-function loadWindowState() {
-  const stateFile = path.join(app.getPath('userData'), 'window-state.json');
-  try {
-    const raw = fs.readFileSync(stateFile, 'utf8');
-    const parsed = JSON.parse(raw);
-    if (
-      parsed &&
-      Number.isFinite(parsed.width) &&
-      Number.isFinite(parsed.height)
-    ) {
-      return parsed;
+const MIN_WINDOW_WIDTH = 1100;
+const MIN_WINDOW_HEIGHT = 640;
+const DEFAULT_WINDOW_WIDTH = 1440;
+const DEFAULT_WINDOW_HEIGHT = 900;
+/** How much of the window has to sit on one display to keep the saved spot. */
+const KEEP_POSITION_RATIO = 0.8;
+
+function windowStatePath() {
+  return path.join(app.getPath('userData'), 'window-state.json');
+}
+
+/**
+ * Turns whatever was on disk into bounds that actually fit one screen.
+ *
+ * The saved file used to be trusted verbatim, and a window that had been
+ * maximised on a 125 %-scaled second monitor came back as e.g. 3200x1292 on a
+ * 2048-wide display -- i.e. it opened straddling both monitors with a corner on
+ * the primary one. Everything is clamped onto the display nearest to the saved
+ * centre, and the position is dropped when the window no longer fits there.
+ */
+function sanitizeWindowBounds(raw) {
+  if (
+    !raw ||
+    !Number.isFinite(raw.width) ||
+    !Number.isFinite(raw.height)
+  ) {
+    return null;
+  }
+
+  const displays = screen.getAllDisplays();
+  if (displays.length === 0) return null;
+
+  const hasPosition = Number.isFinite(raw.x) && Number.isFinite(raw.y);
+  const rawWidth = Math.round(raw.width);
+  const rawHeight = Math.round(raw.height);
+
+  const display = hasPosition
+    ? screen.getDisplayNearestPoint({
+        x: Math.round(raw.x + rawWidth / 2),
+        y: Math.round(raw.y + rawHeight / 2),
+      })
+    : screen.getPrimaryDisplay();
+  const area = display.workArea;
+
+  const width = Math.max(
+    Math.min(MIN_WINDOW_WIDTH, area.width),
+    Math.min(rawWidth, area.width),
+  );
+  const height = Math.max(
+    Math.min(MIN_WINDOW_HEIGHT, area.height),
+    Math.min(rawHeight, area.height),
+  );
+
+  if (hasPosition) {
+    const overlapWidth = Math.max(
+      0,
+      Math.min(raw.x + rawWidth, area.x + area.width) - Math.max(raw.x, area.x),
+    );
+    const overlapHeight = Math.max(
+      0,
+      Math.min(raw.y + rawHeight, area.y + area.height) - Math.max(raw.y, area.y),
+    );
+    const ratio = (overlapWidth * overlapHeight) / (rawWidth * rawHeight);
+    const fits = rawWidth <= area.width && rawHeight <= area.height;
+    if (fits && ratio >= KEEP_POSITION_RATIO) {
+      return {
+        x: Math.round(
+          Math.min(
+            Math.max(raw.x, area.x),
+            area.x + area.width - width,
+          ),
+        ),
+        y: Math.round(
+          Math.min(
+            Math.max(raw.y, area.y),
+            area.y + area.height - height,
+          ),
+        ),
+        width,
+        height,
+      };
     }
+  }
+
+  // No usable position: centre on the target display.
+  return {
+    x: Math.round(area.x + (area.width - width) / 2),
+    y: Math.round(area.y + (area.height - height) / 2),
+    width,
+    height,
+  };
+}
+
+function loadWindowState() {
+  let raw = null;
+  try {
+    // Strip a UTF-8 BOM: hand-edited files (Notepad, PowerShell) often have one
+    // and JSON.parse would then throw, silently resetting the window.
+    const text = fs
+      .readFileSync(windowStatePath(), 'utf8')
+      .replace(/^\uFEFF/, '');
+    raw = JSON.parse(text);
   } catch {
     /* first run */
   }
-  return { width: 1440, height: 900 };
+
+  const sanitized = sanitizeWindowBounds(raw);
+  if (sanitized) return sanitized;
+
+  const primary = screen.getPrimaryDisplay().workArea;
+  const width = Math.min(DEFAULT_WINDOW_WIDTH, primary.width);
+  const height = Math.min(DEFAULT_WINDOW_HEIGHT, primary.height);
+  return {
+    x: Math.round(primary.x + (primary.width - width) / 2),
+    y: Math.round(primary.y + (primary.height - height) / 2),
+    width,
+    height,
+  };
+}
+
+/** Snap sizes to a small grid: mixed-DPI round-trips add a pixel or two each
+ *  time, which would otherwise creep the window wider over many launches. */
+function snapSize(value) {
+  const snapped = Math.round(value / 4) * 4;
+  return snapped > 0 ? snapped : value;
 }
 
 function saveWindowState(win) {
-  if (!win || win.isDestroyed()) {
-    return;
-  }
+  if (!win || win.isDestroyed()) return;
   try {
     const bounds = win.getNormalBounds();
-    const stateFile = path.join(app.getPath('userData'), 'window-state.json');
-    fs.writeFileSync(stateFile, JSON.stringify(bounds));
+    // Mixed-DPI quirk on Windows: for a window on a display with a scale factor
+    // other than 100 % Electron reports the bounds in physical pixels, while the
+    // constructor takes DIPs. Saving them verbatim makes the window 25 % bigger
+    // on every launch until it spills across both monitors. Normalise back to
+    // DIPs so the geometry is stable.
+    const display = screen.getDisplayNearestPoint({
+      x: Math.round(bounds.x + bounds.width / 2),
+      y: Math.round(bounds.y + bounds.height / 2),
+    });
+    const scale = display?.scaleFactor && display.scaleFactor > 0
+      ? display.scaleFactor
+      : 1;
+    const raw = {
+      x: bounds.x,
+      y: bounds.y,
+      width: snapSize(scale === 1 ? bounds.width : bounds.width / scale),
+      height: snapSize(scale === 1 ? bounds.height : bounds.height / scale),
+    };
+    const sanitized = sanitizeWindowBounds(raw) ?? raw;
+    fs.writeFileSync(windowStatePath(), JSON.stringify(sanitized));
   } catch {
     /* ignore */
   }
@@ -468,8 +594,8 @@ function createWindow(port) {
     height: state.height,
     x: state.x,
     y: state.y,
-    minWidth: 1100,
-    minHeight: 640,
+    minWidth: MIN_WINDOW_WIDTH,
+    minHeight: MIN_WINDOW_HEIGHT,
     backgroundColor: '#101113',
     show: false,
     title: APP_NAME,
@@ -491,7 +617,22 @@ function createWindow(port) {
     mainWindow.show();
   });
 
-  mainWindow.on('close', () => saveWindowState(mainWindow));
+  // Persist the position while the window is still open: a crash or a
+  // task-manager kill would otherwise lose the spot the user picked.
+  let saveTimer = null;
+  const scheduleSave = () => {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      saveWindowState(mainWindow);
+    }, 400);
+  };
+  mainWindow.on('move', scheduleSave);
+  mainWindow.on('resize', scheduleSave);
+  mainWindow.on('close', () => {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveWindowState(mainWindow);
+  });
   mainWindow.on('closed', () => {
     mainWindow = null;
   });

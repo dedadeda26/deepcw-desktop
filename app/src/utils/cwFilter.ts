@@ -56,33 +56,38 @@ function baseProfile(name: FrontEndProfileName): FrontEndProfile {
     noiseSlow: 1.0012,
     noiseFast: 1.02,
     noiseBias: 1.4,
-    gainFloorDb: -14.0,
+    // Deliberately shallower than the reference implementation: on real bands a
+    // -14 dB floor plus a 0.12 outside gain sounds "over-processed" (pumping,
+    // hollow keying edges) and the decoder does not need that much.
+    gainFloorDb: -10.0,
     ddAlpha: 0.97,
     trackSpanHz: 260.0,
-    outsideGain: 0.12,
+    outsideGain: 0.22,
     notchEnabled: true,
-    notchOccupancy: 0.75,
-    notchFloor: 0.04,
+    notchOccupancy: 0.78,
+    notchFloor: 0.08,
     agcEnabled: true,
     agcDeadZoneDb: 6.0,
-    agcMaxDb: 8.0,
-    agcTimeS: 0.5,
+    agcMaxDb: 5.0,
+    agcTimeS: 0.8,
     blankEnabled: true,
     blankThreshold: 10.0,
     humEnabled: true,
   };
 
   if (name === "mild") {
-    profile.gainFloorDb = -10.0;
-    profile.notchOccupancy = 0.85;
-    profile.outsideGain = 0.3;
-    profile.agcMaxDb = 4.0;
+    profile.gainFloorDb = -7.0;
+    profile.notchOccupancy = 0.86;
+    profile.outsideGain = 0.4;
+    profile.notchFloor = 0.14;
+    profile.agcMaxDb = 3.0;
     profile.blankThreshold = 9.0;
   } else if (name === "aggressive") {
-    profile.gainFloorDb = -20.0;
-    profile.notchOccupancy = 0.65;
-    profile.outsideGain = 0.05;
-    profile.agcMaxDb = 10.0;
+    profile.gainFloorDb = -14.0;
+    profile.notchOccupancy = 0.7;
+    profile.outsideGain = 0.12;
+    profile.notchFloor = 0.05;
+    profile.agcMaxDb = 7.0;
     profile.blankThreshold = 4.0;
   }
 
@@ -221,9 +226,11 @@ export class CwFrontEnd {
   private readonly acqMaxS = 2.5;
   private readonly dropS = 3.0;
   private readonly wpmPerRising = 7.1;
-  private readonly bandPerWpm = 4.5;
-  private readonly bandMinHz = 110;
-  private readonly bandMaxHz = 280;
+  // A little wider than the reference (4.5 x WPM, min 110 Hz): the tightest
+  // setting clips keying sidebands on fast fists and sounds "boxy".
+  private readonly bandPerWpm = 5.0;
+  private readonly bandMinHz = 130;
+  private readonly bandMaxHz = 300;
 
   // -- streaming state ------------------------------------------------------ //
   private input = new Float64Array(0);
@@ -1240,17 +1247,28 @@ export function resetFrontEndStatus(): void {
   statusListeners.forEach((listener) => listener());
 }
 
+/** Everything the DSP needs for one block, computed on the caller's side so the
+ *  analyser can run in a worker without knowing about the UI settings. */
+export type FrontEndJob = {
+  options: CwFrontEndOptions;
+};
+
+export type FrontEndResult = {
+  audio: Float32Array;
+  status: FrontEndStatus;
+};
+
 /**
- * Runs the front end over one decode block. Returns the input array untouched
- * when the filter is disabled or the block is too short to analyse.
+ * Options for one decode block, or `null` when the filter is off / the block is
+ * too short to analyse.
  */
-export function applyFrontEnd(
-  audio: Float32Array,
+export function buildFrontEndJob(
   filterFreq: number | null,
   filterWidth: number,
-): Float32Array {
+  sampleCount: number,
+): FrontEndJob | null {
   const settings = frontEndSettings;
-  if (!settings.enabled || audio.length < 2048) return audio;
+  if (!settings.enabled || sampleCount < 2048) return null;
 
   let searchHz: [number, number] = [200, 4200];
   if (settings.followSelection && filterFreq != null) {
@@ -1260,8 +1278,8 @@ export function applyFrontEnd(
     if (high - low > 120) searchHz = [low, high];
   }
 
-  try {
-    const frontEnd = new CwFrontEnd({
+  return {
+    options: {
       fs: 9600,
       profile: settings.profile,
       searchHz,
@@ -1272,9 +1290,39 @@ export function applyFrontEnd(
       // it cannot clearly help. `forceEngage` is the user's override.
       lowSnrEngage: false,
       forceEngage: settings.forceEngage,
-    });
-    const filtered = frontEnd.processOfflineStable(audio);
-    publishStatus(frontEnd.getStatus());
+    },
+  };
+}
+
+/** Runs one block through a fresh analyser. Pure: no UI state involved. */
+export function runFrontEndJob(
+  audio: Float32Array,
+  job: FrontEndJob,
+): FrontEndResult {
+  const frontEnd = new CwFrontEnd(job.options);
+  const filtered = frontEnd.processOfflineStable(audio);
+  return { audio: filtered, status: frontEnd.getStatus() };
+}
+
+export function publishFrontEndStatus(status: FrontEndStatus): void {
+  publishStatus(status);
+}
+
+/**
+ * Synchronous convenience wrapper (also used as the worker fallback).
+ * Returns the input array untouched when nothing was done.
+ */
+export function applyFrontEnd(
+  audio: Float32Array,
+  filterFreq: number | null,
+  filterWidth: number,
+): Float32Array {
+  const job = buildFrontEndJob(filterFreq, filterWidth, audio.length);
+  if (!job) return audio;
+
+  try {
+    const { audio: filtered, status } = runFrontEndJob(audio, job);
+    publishStatus(status);
     return filtered;
   } catch (error) {
     console.error("Front-end filter failed", error);

@@ -11,7 +11,7 @@ import type {
   WorkerResponse,
 } from "./inferenceProtocol";
 import { MODEL_KEYS, getModelKey } from "./inferenceProtocol";
-import { applyFrontEnd } from "./cwFilter";
+import { applyFrontEndAsync } from "./frontEndClient";
 
 /**
  * Thin client for the official DeepCW WASM inference worker.
@@ -394,8 +394,10 @@ async function requestInference(
   // Optional DSP front end (tone tracking, noise reduction, notch, AGC). It is
   // a single-signal front end, so multi-signal (shiftTargetFreq) decodes skip it.
   const wantsFrontEnd = !skipFrontEnd && shiftTargetFreq == null;
+  // Off-thread: the analyser takes 50-300 ms per block and would otherwise
+  // freeze the waterfall on every decode cycle.
   const source = wantsFrontEnd
-    ? applyFrontEnd(audioBuffer, filterFreq, filterWidth)
+    ? await applyFrontEndAsync(audioBuffer, filterFreq, filterWidth)
     : audioBuffer;
   const audioCopy = source === audioBuffer ? audioBuffer.slice() : source;
 
